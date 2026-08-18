@@ -1,0 +1,7 @@
+dimension = 50
+sample_size = 5000
+chain_steps = 5000
+epoch_num = 10000
+eps_k = 100
+theta = 0.75
+mu = 1.5

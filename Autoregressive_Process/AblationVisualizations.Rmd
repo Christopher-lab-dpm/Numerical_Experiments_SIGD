@@ -1,0 +1,322 @@
+---
+title: "Ablation Visualization"
+author: "Christopher Turcotte"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+# Look at the data from BackupData1 first
+
+```{r read_MetaData}
+path = "./BackupData1"
+
+MetaData1 = read.table(file = paste0(path, "/MetaData.txt"),
+                       sep = "=",
+                       header = FALSE,
+                       strip.white = TRUE)
+
+dimension  = MetaData1[1,2]
+sample_size = MetaData1[2,2]
+chain_steps = MetaData1[3,2]
+epoch_num = MetaData1[4,2]
+eps_k = MetaData1[5,2]
+theta = MetaData1[6,2]
+mu = MetaData1[7,2]
+```
+
+```{r}
+
+losses <- as.numeric(read_csv(file = paste0(path, "/objective_loss_training.txt"),col_names = FALSE)[1,])
+
+
+# INEXACT
+MCGD_losses <- as.numeric(read_csv(file = paste0(path, "/INEXACT_MCGD_loss_training.txt"),col_names = FALSE)[1,])
+
+# Row I corresponds to x_i
+x_k <- read_csv(file = paste0(path, "/x_k_training.txt"),col_names = FALSE)
+
+g_k <- read_csv(file = paste0(path, "/g_k_training.txt"),col_names = FALSE)
+
+
+epsilon_k <- as.numeric(read_csv(file = paste0(path, "/epsilon_k.txt"),col_names = FALSE)[1,])
+
+i_k <- as.numeric(read_csv(file = paste0(path, "/i_k.txt"),col_names = FALSE)[1,])
+
+
+deriv_diff <- as.numeric(read_csv(file = paste0(path, "/derive_diff.txt"),col_names = FALSE)[1,])
+
+delta_k <- as.numeric(read_csv(file = paste0(path, "/delta_k.txt"),col_names = FALSE)[1,])
+
+ei_sum <- as.numeric(read_csv(file = paste0(path, "/ei_sum.txt"),col_names = FALSE)[1,])
+
+```
+
+
+```{r}
+df <- tibble(
+  xdata = 1:length(losses),
+  ydata = log10(losses)
+)
+
+ggplot(df, aes(x = xdata, y = ydata)) +
+  geom_point() +
+   scale_x_log10() +
+   labs(x = "Number Training Epochs",
+       y = "Loss over Independent Data")#,
+      #title = "Loss with respect to the Independent Dataset Trained on Independent data")
+
+
+ggsave("./Plots/independentloss_gradientdescent.png")
+```
+
+```{r}
+
+df <- tibble(
+  xdata = 1:length(MCGD_losses),
+  ydata = log10(MCGD_losses)
+)
+
+ggplot(df, aes(x = xdata, y = ydata)) +
+   scale_x_log10() +
+  geom_point() +
+   labs(x = "Number Training Epochs",
+       y = "Loss over Independent Data")#,
+       #title = "Loss with respect to the Indepedent Dataset trained on MCGD")
+
+ggsave("./Plots/independentloss_SIGD.png")
+```
+
+
+
+```{r}
+
+# Load in the data
+
+eps1 <- list()
+eps2 <- list()
+data_eps <- list(eps1, eps2)
+
+data_eps_csv <- read_csv(paste0(path,"/data_eps.txt"), col_names = FALSE)
+
+for(i in 1:dim(data_eps_csv)[1]){
+  
+  data_eps$eps1[[i]] <-  as.numeric(data_eps_csv[i , 2:51 ])
+  data_eps$eps2[[i]] <-  as.numeric(data_eps_csv[i , 1])
+  
+}
+
+```
+
+
+# Distance Between U and x_k
+
+```{r}
+u_vector <- as.numeric(read_csv(file = paste0(path,"/u_vec.txt"),col_names = FALSE)[1,])
+```
+
+
+```{r}
+norm <- function(x){
+  return(sqrt(sum(x^2)))
+}
+
+distance_norms <-  apply(t(as.matrix(x_k))- (u_vector[!is.na(u_vector)]) , 2 , norm)
+
+
+
+
+df <- tibble(
+  xdata =  1:length(distance_norms) ,
+  ydata = log10(distance_norms)
+)
+
+ggplot(df, aes(x = xdata, y = ydata)) +
+   scale_x_log10() +
+  geom_point() +
+   labs(x = "Number Epochs",
+       y = "Distance between x_k and u")#,
+       #title = "Distance between x_k and the the parameter we wish to recover")
+
+ggsave("./Plots/SIGD_x_k_distance_to_opt.png")
+```
+
+
+
+
+```{r}
+## See which error bound was used at each iteration of the algorithm
+k = 1:epoch_num
+
+stepsizes = 1/(k^0.501)
+
+lambda = stepsizes * (log(k)^2)
+
+
+error_init = eps_k # Initial starting value of the error when running the algorithm
+
+
+eps_theta_sequence = 1:length(k)
+for(j in k){
+  i_k_alt = i_k[1:j]
+  i_k_alt[i_k_alt >= 50] <- 0 # Since we skipped the iteration with i > 50
+  eps_theta_sequence[j] = theta ^ sum(i_k_alt) * error_init
+}
+
+
+lambda[1] = eps_theta_sequence[1] + 0.0001 # Deal with logical issue of k=1 in the alogarithm (our implementation skips this one)
+
+```
+
+```{r}
+
+df_lambda <- tibble(
+  xdata =  2:10000,
+  ydata = log10(lambda[2:10000])
+)
+
+df_theta <- tibble(
+  xdata =  2:10000,
+  ydata = log10(eps_theta_sequence[2:10000])
+)
+
+ggplot() +
+  geom_point(data=df_lambda, aes(x = xdata, y = (ydata), col="Lambda")) +
+  geom_point(data=df_theta, aes(x = xdata, y = (ydata), col="SIGD")) +
+   scale_x_log10() +
+   labs(x = "Number Training Epochs",
+       y = "Error Bounds")#,
+       #title = "Check if alpha sequence as used or if the regular errors were used")
+
+ggsave("./Plots/Error_Bounds_During_Training.png")
+```
+
+
+
+Plot for the mutiple values of mu and theta
+```{r multiplot}
+# library(cowplot)
+library(latex2exp)
+library(scales)
+
+norm <- function(x){
+  return(sqrt(sum(x^2)))
+}
+
+theta_tracker_list = list()
+mu_tracker_list = list()
+distance_list = list()
+
+for(i in 1:16){
+  path = paste0("./BackupData",i) 
+  MetaData1 = read.table(file = paste0(path, "/MetaData.txt"),
+                       sep = "=",
+                       header = FALSE,
+                       strip.white = TRUE)
+
+  dimension  = MetaData1[1,2]
+  sample_size = MetaData1[2,2]
+  chain_steps = MetaData1[3,2]
+  epoch_num = MetaData1[4,2]
+  eps_k = MetaData1[5,2]
+  theta = MetaData1[6,2]
+  mu = MetaData1[7,2]
+  
+  x_k <- read_csv(file = paste0(path, "/x_k_training.txt"),col_names = FALSE)
+
+  distance_norms <-  apply(t(as.matrix(x_k))- (u_vector[!is.na(u_vector)]) , 2 , norm)
+  
+  distance_list[[i]] = distance_norms
+  theta_tracker_list[[i]] = theta
+  mu_tracker_list[[i]] = mu
+  
+}
+
+theta1_plot = ggplot()
+theta2_plot = ggplot()
+theta3_plot = ggplot()
+theta4_plot = ggplot()
+
+p1 = NULL
+p2 = NULL
+p3 = NULL
+p4 = NULL
+
+for (i in 1:16) {
+  thetas = unique(unlist(theta_tracker_list))
+  mus = unique(unlist(mu_tracker_list))
+  
+  distance_norms = distance_list[[i]]
+  t = theta_tracker_list[[i]]
+  var_mu = mu_tracker_list[[i]]
+  
+  
+  
+  df <- tibble(
+    xdata =  (1:length(distance_norms)),
+    ydata = log10(distance_norms))
+  
+  if(t == thetas[1]){
+    str = paste0("μ = ", var_mu)
+ theta1_plot=  theta1_plot + geom_line(data = df, aes(x = (xdata), 
+                                                y = (ydata), 
+                                                col=!!str)
+                                        ) 
+
+  } else if(t == thetas[2]){
+    str = paste0("μ = ", var_mu)
+   theta2_plot =  theta2_plot + geom_line(data = df, aes(x = (xdata), 
+                                                          y = (ydata), 
+                                                          col=!!str))
+
+  } else if(t == thetas[3]){
+    str = paste0("μ = ", var_mu)
+    theta3_plot = theta3_plot + geom_line(data = df, aes(x = (xdata), 
+                                                          y = (ydata),
+                                                          col=!!str))
+
+  } else{
+  str = paste0("μ = ", var_mu)
+  theta4_plot = theta4_plot + geom_line(data = df, aes(x = (xdata), 
+                                                        y = (ydata), 
+                                                        col= !!str))
+ 
+  }
+  
+}
+
+p1 = theta1_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[1]))) + scale_x_log10()
+
+p2 = theta2_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling" ,  title = bquote(theta == .(thetas[2]))) + scale_x_log10()
+
+p3 = theta3_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[3]))) + scale_x_log10()
+
+p4 = theta4_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[4]))) + scale_x_log10()
+
+
+ggsave(plot = p1, "./Plots/theta_mu_p1_plot.png")
+ggsave(plot = p2, "./Plots/theta_mu_p2_plot.png")
+ggsave(plot = p3, "./Plots/theta_mu_p3_plot.png")
+ggsave(plot = p4, "./Plots/theta_mu_p4_plot.png")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
