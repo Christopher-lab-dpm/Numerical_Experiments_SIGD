@@ -71,7 +71,7 @@ ggplot(df, aes(x = xdata, y = ydata)) +
   geom_point() +
    scale_x_log10() +
    labs(x = "Number Training Epochs",
-       y = "Loss over Independent Data")#,
+       y = "Log Loss over Independent Data")#,
       #title = "Loss with respect to the Independent Dataset Trained on Independent data")
 
 
@@ -89,7 +89,7 @@ ggplot(df, aes(x = xdata, y = ydata)) +
    scale_x_log10() +
   geom_point() +
    labs(x = "Number Training Epochs",
-       y = "Loss over Independent Data")#,
+       y = "Log Loss over Independent Data")#,
        #title = "Loss with respect to the Indepedent Dataset trained on MCGD")
 
 ggsave("./Plots/independentloss_SIGD.png")
@@ -143,7 +143,7 @@ ggplot(df, aes(x = xdata, y = ydata)) +
    scale_x_log10() +
   geom_point() +
    labs(x = "Number Epochs",
-       y = "Distance between x_k and u")#,
+       y = "Log Distance between x_k and u")#,
        #title = "Distance between x_k and the the parameter we wish to recover")
 
 ggsave("./Plots/SIGD_x_k_distance_to_opt.png")
@@ -172,7 +172,7 @@ for(j in k){
 }
 
 
-lambda[1] = eps_theta_sequence[1] + 0.0001 # Deal with logical issue of k=1 in the alogarithm (our implementation skips this one)
+lambda[1] = eps_theta_sequence[1] + 0.0001 # Deal with logical issue of k=1 in the algorithm (our implementation skips this one)
 
 ```
 
@@ -193,7 +193,7 @@ ggplot() +
   geom_point(data=df_theta, aes(x = xdata, y = (ydata), col="SIGD")) +
    scale_x_log10() +
    labs(x = "Number Training Epochs",
-       y = "Error Bounds")#,
+       y = "Log Error Bounds")#,
        #title = "Check if alpha sequence as used or if the regular errors were used")
 
 ggsave("./Plots/Error_Bounds_During_Training.png")
@@ -293,13 +293,13 @@ for (i in 1:16) {
   
 }
 
-p1 = theta1_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[1]))) + scale_x_log10()
+p1 = theta1_plot + labs(x = "Number Epochs", y = TeX(r'(Log Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[1]))) + scale_x_log10()
 
-p2 = theta2_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling" ,  title = bquote(theta == .(thetas[2]))) + scale_x_log10()
+p2 = theta2_plot + labs(x = "Number Epochs", y = TeX(r'(Log Distance between $x_k$ and u)'), colour = "Scaling" ,  title = bquote(theta == .(thetas[2]))) + scale_x_log10()
 
-p3 = theta3_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[3]))) + scale_x_log10()
+p3 = theta3_plot + labs(x = "Number Epochs", y = TeX(r'(Log Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[3]))) + scale_x_log10()
 
-p4 = theta4_plot + labs(x = "Number Epochs", y = TeX(r'(Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[4]))) + scale_x_log10()
+p4 = theta4_plot + labs(x = "Number Epochs", y = TeX(r'(Log Distance between $x_k$ and u)'), colour = "Scaling",  title = bquote(theta == .(thetas[4]))) + scale_x_log10()
 
 
 ggsave(plot = p1, "./Plots/theta_mu_p1_plot.png")
